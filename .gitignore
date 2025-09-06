@@ -127,3 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE files
+.vscode/
+
+# BRON generated data files
+data/attacks/
+data/raw/
+
+# Claude Code configuration
+CLAUDE.md

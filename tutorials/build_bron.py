@@ -21,6 +21,7 @@ import download_threat_information.parsing_scripts.parse_attack_tactic_technique
 import offense.build_offensive_BRON as build_offensive_BRON
 from offense.build_software_and_groups import build_software_and_groups, SG_OUT_DATA_DIR
 import graph_db.bron_arango as bron_arango
+import graph_db.bron_neo4j as bron_neo4j
 import mitigations.d3fend_mitigations as d3fend
 import mitigations.engage_mitigations as engage
 import mitigations.technique_mitigations as attack_mitigations
@@ -34,7 +35,7 @@ MBRON_SAVE_PATH = "data/mitigations"
 
 
 def parse_args(args: List[str]) -> Any:
-    parser = argparse.ArgumentParser(description="Build BRON in Arango DB")
+    parser = argparse.ArgumentParser(description="Build BRON in Graph Databases (ArangoDB/Neo4j)")
     parser.add_argument("--username", type=str, required=True, help="DB username")
     parser.add_argument("--password", type=str, required=True, help="DB password")
     parser.add_argument("--ip", type=str, required=True, help="DB IP address")
@@ -50,6 +51,41 @@ def parse_args(args: List[str]) -> Any:
         "--no_arangodb",
         action="store_true",
         help="Do not create and import to Arangodb",
+    )
+    # Neo4j arguments
+    parser.add_argument(
+        "--neo4j",
+        action="store_true",
+        help="Import data to Neo4j database",
+    )
+    parser.add_argument(
+        "--neo4j_uri",
+        type=str,
+        default="bolt://localhost:7687",
+        help="Neo4j URI (default: bolt://localhost:7687)",
+    )
+    parser.add_argument(
+        "--neo4j_user",
+        type=str,
+        default="neo4j",
+        help="Neo4j username (default: neo4j)",
+    )
+    parser.add_argument(
+        "--neo4j_password",
+        type=str,
+        default="password123",
+        help="Neo4j password (default: password123)",
+    )
+    parser.add_argument(
+        "--neo4j_database",
+        type=str,
+        default="neo4j",
+        help="Neo4j database name (default: neo4j)",
+    )
+    parser.add_argument(
+        "--neo4j_clear",
+        action="store_true",
+        help="Clear Neo4j database before import",
     )
     parser.add_argument(
         "--no_mitigations",
@@ -140,6 +176,19 @@ def _arangodb(username: str, password: str, ip: str, no_validation):
     update_edges_between_same_datasources(username, password, ip, not no_validation)
     logging.info("Import same datasource links into Arangodb")
     build_software_and_groups(SG_OUT_DATA_DIR, username, password, ip, not no_validation)
+
+
+def _neo4j(uri: str, user: str, password: str, database: str, clear_db: bool):
+    logging.info("BEGIN Import BRON into Neo4j")
+    bron_neo4j.main(
+        os.path.join(BRON_SAVE_PATH, "BRON.json"),
+        uri,
+        user,
+        password,
+        database,
+        clear_db,
+    )
+    logging.info("Import BRON into Neo4j completed")
     
 
 
@@ -232,7 +281,13 @@ def main(
     no_arangodb: bool = False,
     no_mitigations: bool = False,
     no_validation: bool = False,
-    only_recent: bool=False
+    only_recent: bool = False,
+    neo4j: bool = False,
+    neo4j_uri: str = "bolt://localhost:7687",
+    neo4j_user: str = "neo4j",
+    neo4j_password: str = "password123",
+    neo4j_database: str = "neo4j",
+    neo4j_clear: bool = False
 ):
     # TODO change import to not create duplicates
     logging.info("BEGIN building BRON")
@@ -252,6 +307,10 @@ def main(
     # Build Arango
     if not no_arangodb:
         _arangodb(username, password, ip, no_validation)
+
+    # Build Neo4j
+    if neo4j:
+        _neo4j(neo4j_uri, neo4j_user, neo4j_password, neo4j_database, neo4j_clear)
 
     if not no_mitigations:
         # TODO refactor legacy division of building attacker and then mitigations seperately
@@ -284,5 +343,11 @@ if __name__ == "__main__":
         args_.no_arangodb,
         args_.no_mitigations,
         args_.no_validation,
-        args_.only_recent
+        args_.only_recent,
+        args_.neo4j,
+        args_.neo4j_uri,
+        args_.neo4j_user,
+        args_.neo4j_password,
+        args_.neo4j_database,
+        args_.neo4j_clear
     )

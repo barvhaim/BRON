@@ -16,6 +16,7 @@ numpy
 python-arango
 pyyaml
 scikit-learn
+neo4j
 
 
 
